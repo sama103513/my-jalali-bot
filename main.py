@@ -1,21 +1,25 @@
 import os
 import jdatetime
 from datetime import datetime
-import pytz  # کتابخانه تنظیم منطقه زمانی
+import pytz  # برای تنظیم منطقه زمانی تهران
 from pyrogram import Client, filters
 from pyrogram.types import Message
 
 # ---------------------------------------------------------
 # تنظیمات ربات
 # ---------------------------------------------------------
+# این API عمومی است و نیاز به ساخت اکانت اختصاصی ندارد
 API_ID = 2040
 API_HASH = "b18441a1ff607e10a989891a5462e627"
 
-# دریافت توکن از متغیرهای محیطی (ایمن‌ترین روش در فضای ابری)
+# دریافت توکن از متغیرهای محیطی (محیط Railway/Glitch)
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
 APP_NAME = "my_jalali_bot"
 
+# ---------------------------------------------------------
+# ایجاد کلاینت ربات
+# ---------------------------------------------------------
 app = Client(
     name=APP_NAME,
     api_id=API_ID,
@@ -24,23 +28,24 @@ app = Client(
 )
 
 # ---------------------------------------------------------
-# تابع دریافت تاریخ شمسی (اصلاح شده)
+# تابع دریافت تاریخ شمسی (اصلاح شده برای نسخه جدید پایتون و jdatetime)
 # ---------------------------------------------------------
 def get_persian_date():
-    # تنظیم منطقه زمانی به تهران
+    # تنظیم منطقه زمانی به تهران تا ساعت دقیق ایران باشد
     tehran_tz = pytz.timezone("Asia/Tehran")
     
-    # دریافت زمان فعلی با منطقه زمانی تهران
+    # دریافت زمان فعلی
     now = datetime.now(tehran_tz)
     
     # تبدیل به تاریخ شمسی
     j_date = jdatetime.date.fromgregorian(date=now)
     
-    # دریافت نام روز هفته
+    # دریافت نام روز هفته (مثلاً پنجشنبه)
     day_name = j_date.strftime("%A")
     
-    # فرمت‌بندی نهایی (مثال: جمعه ۱۴۰۳/۰۲/۰۱)
-    formatted_date = f"{day_name} {j_date.jyear}/{j_date.jmonth:02d}/{j_date.jday:02d}"
+    # فرمت‌بندی نهایی
+    # نکته: در نسخه‌های جدید jdatetime از year به جای jyear استفاده می‌شود
+    formatted_date = f"{day_name} {j_date.year}/{j_date.month:02d}/{j_date.day:02d}"
     
     return formatted_date
 
@@ -70,9 +75,8 @@ async def footer_handler(client: Client, message: Message):
         await message.reply(new_text, quote=True)
         
     except Exception as e:
-        # اگر خطایی رخ داد، چاپ کن
+        # نمایش خطا در لاگ‌های سرور (برای دیباگ)
         print(f"Error: {e}")
-        await message.reply_text("متاسفانه خطایی رخ داد.")
 
 # ---------------------------------------------------------
 # اجرای ربات
