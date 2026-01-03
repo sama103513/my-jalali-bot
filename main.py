@@ -6,16 +6,15 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 
 # ---------------------------------------------------------
-# Configuration
+# Bot Configuration
 # ---------------------------------------------------------
-# It is better to get ID and Hash from Environment Variables in Railway
-API_ID = int(os.environ.get("API_ID", 2040))
-API_HASH = os.environ.get("API_HASH", "b18441a1ff607e10a989891a5462e627")
+API_ID = 2040
+API_HASH = "b18441a1ff607e10a989891a5462e627"
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-APP_NAME = "railway_bot"
+APP_NAME = "bot_railway"
 
 # ---------------------------------------------------------
-# Client Initialization
+# Initialize Client
 # ---------------------------------------------------------
 app = Client(
     name=APP_NAME,
@@ -25,63 +24,74 @@ app = Client(
 )
 
 # ---------------------------------------------------------
-# Helper Function: Get Persian Date
+# Function to Get Persian Date
 # ---------------------------------------------------------
 def get_persian_date():
     tehran_tz = pytz.timezone("Asia/Tehran")
     now = datetime.now(tehran_tz)
     j_date = jdatetime.date.fromgregorian(date=now, locale='fa_IR')
     day_name = j_date.strftime("%A")
-    return f"{day_name} {j_date.year}/{j_date.month:02d}/{j_date.day:02d}"
+    formatted_date = f"{day_name} {j_date.year}/{j_date.month:02d}/{j_date.day:02d}"
+    return formatted_date
 
 # ---------------------------------------------------------
-# Start Command
+# Start Command Handler
 # ---------------------------------------------------------
 @app.on_message(filters.command("start"))
 async def start(client: Client, message: Message):
-    await message.reply_text("Bot is active on Railway!")
+    await message.reply_text("Bot started successfully!")
 
 # ---------------------------------------------------------
-# Main Handler (Text & Photo)
+# Main Handler: Supports Text and Photos
 # ---------------------------------------------------------
 @app.on_message((filters.text | filters.photo) & ~filters.command("start"))
 async def footer_handler(client: Client, message: Message):
     try:
         date_str = get_persian_date()
-        footer = f"\n\n📅 {date_str}"
-        sent_msg = None
-
+        footer_text = f"\n\n📅 {date_str}"
+        
+        sent_message = None
+        
         if message.photo:
-            cap = message.caption or ""
-            sent_msg = await client.send_photo(
+            # Handle Photo
+            original_caption = message.caption if message.caption else ""
+            sent_message = await client.send_photo(
                 chat_id=message.chat.id,
                 photo=message.photo.file_id,
-                caption=cap + footer
+                caption=original_caption + footer_text
             )
         else:
-            sent_msg = await client.send_message(
+            # Handle Text
+            original_text = message.text
+            new_text = original_text + footer_text
+            sent_message = await client.send_message(
                 chat_id=message.chat.id,
-                text=message.text + footer,
+                text=new_text,
                 disable_web_page_preview=True
             )
 
-        # Execute the copy trick to preserve author name
-        if sent_msg:
-            await sent_msg.delete()
+        # Trick: Delete bot message, then copy it back to show original author
+        if sent_message:
+            # 1. Delete the message sent by the bot (temporary message)
+            await sent_message.delete()
+            
+            # 2. Copy the deleted message so it appears as sent by the user
             await client.copy_message(
                 chat_id=message.chat.id,
                 from_chat_id=message.chat.id,
-                message_id=sent_msg.id
+                message_id=sent_message.id
             )
-        
-        await message.delete()
+            
+            # 3. FINALLY delete the user's original message
+            # We do this last to ensure the new message is visible before the old one disappears
+            await message.delete()
 
     except Exception as e:
         print(f"Error: {e}")
 
 # ---------------------------------------------------------
-# Run
+# Run the Bot
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    print("Starting bot...")
+    print("Bot is running...")
     app.run()
