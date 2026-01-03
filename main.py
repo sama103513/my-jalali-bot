@@ -42,20 +42,25 @@ async def start(client: Client, message: Message):
     await message.reply_text("Bot started successfully!")
 
 # ---------------------------------------------------------
-# Main Handler: Supports Text and Photos
+# Main Handler: Replace User Message with Bot Message (Date + Author)
 # ---------------------------------------------------------
 @app.on_message((filters.text | filters.photo) & ~filters.command("start"))
 async def footer_handler(client: Client, message: Message):
     try:
         date_str = get_persian_date()
-        footer_text = f"\n\n📅 {date_str}"
         
-        sent_message = None
+        # Get Author Name
+        # Prioritize First Name, then Last Name, then Username
+        author_name = message.from_user.first_name or message.from_user.last_name or message.from_user.username or "کاربر"
+        
+        # Create Footer Text: Author + Date
+        footer_text = f"\n\n✍️ نویسنده: {author_name}\n📅 {date_str}"
         
         if message.photo:
             # Handle Photo
             original_caption = message.caption if message.caption else ""
-            sent_message = await client.send_photo(
+            # Send Photo with new caption (Old Caption + Footer)
+            await client.send_photo(
                 chat_id=message.chat.id,
                 photo=message.photo.file_id,
                 caption=original_caption + footer_text
@@ -64,27 +69,15 @@ async def footer_handler(client: Client, message: Message):
             # Handle Text
             original_text = message.text
             new_text = original_text + footer_text
-            sent_message = await client.send_message(
+            # Send Text with new text (Old Text + Footer)
+            await client.send_message(
                 chat_id=message.chat.id,
                 text=new_text,
                 disable_web_page_preview=True
             )
-
-        # Trick: Delete bot message, then copy it back to show original author
-        if sent_message:
-            # 1. Delete the message sent by the bot (temporary message)
-            await sent_message.delete()
-            
-            # 2. Copy the deleted message so it appears as sent by the user
-            await client.copy_message(
-                chat_id=message.chat.id,
-                from_chat_id=message.chat.id,
-                message_id=sent_message.id
-            )
-            
-            # 3. FINALLY delete the user's original message
-            # We do this last to ensure the new message is visible before the old one disappears
-            await message.delete()
+        
+        # Delete the original user message
+        await message.delete()
 
     except Exception as e:
         print(f"Error: {e}")
