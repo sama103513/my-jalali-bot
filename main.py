@@ -14,14 +14,14 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 APP_NAME = "ربات تاریخ شمسی"
 
 # ---------------------------------------------------------
-# ایجاد کلاینت ربات با قابلیت مدیریت خطای Flood
+# ایجاد کلاینت ربات
 # ---------------------------------------------------------
 app = Client(
     name=APP_NAME,
     api_id=API_ID,
     api_hash=API_HASH,
     bot_token=BOT_TOKEN,
-    max_retries=5  # تعداد دفعات تلاش مجدد در صورت خطا
+    max_retries=5
 )
 
 # ---------------------------------------------------------
@@ -45,33 +45,62 @@ async def start(client: Client, message: Message):
     await message.reply_text("👋 سلام! من ربات هستم.\n\nپیام شما را حذف کرده و با تاریخ شمسی دوباره ارسال می‌کنم.")
 
 # ---------------------------------------------------------
-# هندلر اصلی
+# هندلر اصلی: پشتیبانی از متن و عکس
 # ---------------------------------------------------------
-@app.on_message(filters.text & ~filters.command("start"))
+@app.on_message((filters.text | filters.photo) & ~filters.command("start"))
 async def footer_handler(client: Client, message: Message):
     try:
-        original_text = message.text
         date_str = get_persian_date()
-        new_text = f"{original_text}\n\n📅 {date_str}"
+        footer_text = f"\n\n📅 {date_str}"
         
+        sent_message = None
+        
+        # بررسی اینکه پیام عکس است یا متن ساده
+        if message.photo:
+            # --- مدیریت عکس ---
+            original_caption = message.caption if message.caption else ""
+            
+            # ارسال عکس با کپشن جدید (کپشن اصلی + تاریخ)
+            sent_message = await client.send_photo(
+                chat_id=message.chat.id,
+                photo=message.photo.file_id,
+                caption=original_caption + footer_text
+            )
+            
+        else:
+            # --- مدیریت متن ---
+            original_text = message.text
+            new_text = original_text + footer_text
+            
+            # ارسال متن جدید
+            sent_message = await client.send_message(
+                chat_id=message.chat.id,
+                text=new_text,
+                disable_web_page_preview=True
+            )
+
+        # اعمال تکنیک "حذف و کپی" برای نمایش نویسنده اصلی
+        if sent_message:
+            # 1. حذف پیامی که به نام ربات ارسال شد
+            await sent_message.delete()
+            
+            # 2. کپی پیام برای نمایش به نام نویسنده اصلی
+            # چون پیام مبدا حذف شده، تلگرام آن را به نام فرستنده قبلی (کاربر) نشان می‌دهد
+            await client.copy_message(
+                chat_id=message.chat.id,
+                from_chat_id=message.chat.id,
+                message_id=sent_message.id
+            )
+            
+        # 3. حذف پیام اصلی کاربر
         await message.delete()
-        await client.send_message(
-            chat_id=message.chat.id,
-            text=new_text,
-            disable_web_page_preview=True
-        )
-        
+
     except Exception as e:
         print(f"Error: {e}")
-        # اگر خطا غیر از Flood بود، به کاربر اطلاع ندهیم تا اسپم نشود
-        pass
 
 # ---------------------------------------------------------
-# اجرای ربات (با مدیریت خطای FloodWait)
+# اجرای ربات
 # ---------------------------------------------------------
 if __name__ == "__main__":
     print("ربات در حال اجرا است...")
-    try:
-        app.run()
-    except Exception as e:
-        print(f"خطای سیستمی: {e}")
+    app.run()
