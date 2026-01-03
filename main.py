@@ -6,15 +6,15 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 
 # ---------------------------------------------------------
-# تنظیمات ربات
+# Bot Settings
 # ---------------------------------------------------------
 API_ID = 2040
 API_HASH = "b18441a1ff607e10a989891a5462e627"
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-APP_NAME = "ربات تاریخ شمسی"
+APP_NAME = "Jalali Bot"
 
 # ---------------------------------------------------------
-# ایجاد کلاینت ربات
+# Create Client
 # ---------------------------------------------------------
 app = Client(
     name=APP_NAME,
@@ -25,7 +25,7 @@ app = Client(
 )
 
 # ---------------------------------------------------------
-# تابع دریافت تاریخ شمسی
+# Function to Get Persian Date
 # ---------------------------------------------------------
 def get_persian_date():
     tehran_tz = pytz.timezone("Asia/Tehran")
@@ -38,14 +38,14 @@ def get_persian_date():
     return formatted_date
 
 # ---------------------------------------------------------
-# دستور شروع
+# Start Command
 # ---------------------------------------------------------
 @app.on_message(filters.command("start"))
 async def start(client: Client, message: Message):
-    await message.reply_text("👋 سلام! من ربات هستم.\n\nپیام شما را حذف کرده و با تاریخ شمسی دوباره ارسال می‌کنم.")
+    await message.reply_text("Bot is running! Send a message or photo.")
 
 # ---------------------------------------------------------
-# هندلر اصلی: پشتیبانی از متن و عکس
+# Main Handler: Text and Photo
 # ---------------------------------------------------------
 @app.on_message((filters.text | filters.photo) & ~filters.command("start"))
 async def footer_handler(client: Client, message: Message):
@@ -55,52 +55,45 @@ async def footer_handler(client: Client, message: Message):
         
         sent_message = None
         
-        # بررسی اینکه پیام عکس است یا متن ساده
         if message.photo:
-            # --- مدیریت عکس ---
+            # Handle Photo
             original_caption = message.caption if message.caption else ""
-            
-            # ارسال عکس با کپشن جدید (کپشن اصلی + تاریخ)
             sent_message = await client.send_photo(
                 chat_id=message.chat.id,
                 photo=message.photo.file_id,
                 caption=original_caption + footer_text
             )
-            
         else:
-            # --- مدیریت متن ---
+            # Handle Text
             original_text = message.text
             new_text = original_text + footer_text
-            
-            # ارسال متن جدید
             sent_message = await client.send_message(
                 chat_id=message.chat.id,
                 text=new_text,
                 disable_web_page_preview=True
             )
 
-        # اعمال تکنیک "حذف و کپی" برای نمایش نویسنده اصلی
+        # Send, Delete, Copy trick
         if sent_message:
-            # 1. حذف پیامی که به نام ربات ارسال شد
+            # 1. Delete the bot's message
             await sent_message.delete()
             
-            # 2. کپی پیام برای نمایش به نام نویسنده اصلی
-            # چون پیام مبدا حذف شده، تلگرام آن را به نام فرستنده قبلی (کاربر) نشان می‌دهد
+            # 2. Copy it back to show as original author
             await client.copy_message(
                 chat_id=message.chat.id,
                 from_chat_id=message.chat.id,
                 message_id=sent_message.id
             )
             
-        # 3. حذف پیام اصلی کاربر
+        # 3. Delete original user message
         await message.delete()
 
     except Exception as e:
         print(f"Error: {e}")
 
 # ---------------------------------------------------------
-# اجرای ربات
+# Run
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    print("ربات در حال اجرا است...")
+    print("Bot is running...")
     app.run()
