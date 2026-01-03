@@ -6,15 +6,16 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 
 # ---------------------------------------------------------
-# Bot Configuration
+# Configuration
 # ---------------------------------------------------------
-API_ID = 2040
-API_HASH = "b18441a1ff607e10a989891a5462e627"
+# It is better to get ID and Hash from Environment Variables in Railway
+API_ID = int(os.environ.get("API_ID", 2040))
+API_HASH = os.environ.get("API_HASH", "b18441a1ff607e10a989891a5462e627")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-APP_NAME = "bot_railway"
+APP_NAME = "railway_bot"
 
 # ---------------------------------------------------------
-# Initialize Client
+# Client Initialization
 # ---------------------------------------------------------
 app = Client(
     name=APP_NAME,
@@ -24,70 +25,63 @@ app = Client(
 )
 
 # ---------------------------------------------------------
-# Function to Get Persian Date
+# Helper Function: Get Persian Date
 # ---------------------------------------------------------
 def get_persian_date():
     tehran_tz = pytz.timezone("Asia/Tehran")
     now = datetime.now(tehran_tz)
     j_date = jdatetime.date.fromgregorian(date=now, locale='fa_IR')
     day_name = j_date.strftime("%A")
-    formatted_date = f"{day_name} {j_date.year}/{j_date.month:02d}/{j_date.day:02d}"
-    return formatted_date
+    return f"{day_name} {j_date.year}/{j_date.month:02d}/{j_date.day:02d}"
 
 # ---------------------------------------------------------
-# Start Command Handler
+# Start Command
 # ---------------------------------------------------------
 @app.on_message(filters.command("start"))
 async def start(client: Client, message: Message):
-    await message.reply_text("Bot started successfully!")
+    await message.reply_text("Bot is active on Railway!")
 
 # ---------------------------------------------------------
-# Main Handler: Supports Text and Photos
+# Main Handler (Text & Photo)
 # ---------------------------------------------------------
 @app.on_message((filters.text | filters.photo) & ~filters.command("start"))
 async def footer_handler(client: Client, message: Message):
     try:
         date_str = get_persian_date()
-        footer_text = f"\n\n📅 {date_str}"
-        
-        sent_message = None
-        
+        footer = f"\n\n📅 {date_str}"
+        sent_msg = None
+
         if message.photo:
-            # Handle Photo: Add date to caption
-            original_caption = message.caption if message.caption else ""
-            sent_message = await client.send_photo(
+            cap = message.caption or ""
+            sent_msg = await client.send_photo(
                 chat_id=message.chat.id,
                 photo=message.photo.file_id,
-                caption=original_caption + footer_text
+                caption=cap + footer
             )
         else:
-            # Handle Text: Add date to message body
-            original_text = message.text
-            new_text = original_text + footer_text
-            sent_message = await client.send_message(
+            sent_msg = await client.send_message(
                 chat_id=message.chat.id,
-                text=new_text,
+                text=message.text + footer,
                 disable_web_page_preview=True
             )
 
-        # Trick: Delete bot message, then copy it back to show original author
-        if sent_message:
-            await sent_message.delete()
+        # Execute the copy trick to preserve author name
+        if sent_msg:
+            await sent_msg.delete()
             await client.copy_message(
                 chat_id=message.chat.id,
                 from_chat_id=message.chat.id,
-                message_id=sent_message.id
+                message_id=sent_msg.id
             )
-            
-        # Delete the user's original message
+        
         await message.delete()
 
     except Exception as e:
         print(f"Error: {e}")
 
 # ---------------------------------------------------------
-# Run the Bot
+# Run
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    print("Bot is running...")
+    print("Starting bot...")
     app.run()
