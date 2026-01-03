@@ -49,17 +49,25 @@ async def footer_handler(client: Client, message: Message):
     try:
         date_str = get_persian_date()
         
-        # Get Author Name
-        # Prioritize First Name, then Last Name, then Username
-        author_name = message.from_user.first_name or message.from_user.last_name or message.from_user.username or "کاربر"
+        # --- اصلاح شده: دریافت کامل نام و نام خانوادگی ---
+        first = message.from_user.first_name or ""
+        last = message.from_user.last_name or ""
         
+        # اگر هر دو وجود داشتند، بینشان فاصله می‌گذاریم
+        # اگر هیچکدام نبود، از یوزرنیم استفاده می‌کنیم
+        if first or last:
+            author_name = f"{first} {last}".strip() # .strip() برای حذف فاصله‌های اضافی
+        else:
+            author_name = f"@{message.from_user.username}" if message.from_user.username else "کاربر"
+        
+        # -----------------------------------------------------
+
         # Create Footer Text: Author + Date
         footer_text = f"\n\n✍️ نویسنده: {author_name}\n📅 {date_str}"
         
         if message.photo:
             # Handle Photo
             original_caption = message.caption if message.caption else ""
-            # Send Photo with new caption (Old Caption + Footer)
             await client.send_photo(
                 chat_id=message.chat.id,
                 photo=message.photo.file_id,
@@ -69,7 +77,6 @@ async def footer_handler(client: Client, message: Message):
             # Handle Text
             original_text = message.text
             new_text = original_text + footer_text
-            # Send Text with new text (Old Text + Footer)
             await client.send_message(
                 chat_id=message.chat.id,
                 text=new_text,
